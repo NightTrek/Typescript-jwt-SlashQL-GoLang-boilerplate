@@ -1,0 +1,46 @@
+query allPosts {
+  queryPost(order: { desc: datePublished }) {
+    PID
+    title
+    datePublished
+    author {
+      userName
+      UID
+    }
+  }
+}
+
+query User ($email:String){
+  queryUser(filter: {email:{anyofterms: $email}}){
+    userName
+    firstName
+    UID
+    readingLists{
+      title
+      shortDescription
+      posts{
+        title
+        url
+        PID
+      }
+      tags{
+        name
+      }
+    }
+  }
+}
+
+
+query getUser($id: ID!) {
+  getUser(UID: $id) {
+    UID
+    firstName
+    lastName
+    userName
+    email
+    readingLists {
+      RID
+      title
+    }
+  }
+}

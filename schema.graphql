@@ -1,0 +1,124 @@
+type User @auth(
+  query: { or: [
+    # only allow site admins to see all users.
+    { rule: "{ $USERROLE: { eq: \"ADMINISTRATOR\"} }" } # we have to escape quotation marks in the query
+    # allows the login script to find a user with matching password
+    # remember we can't query passwords, but this lets us check at login
+    { rule: "query($PASSWORD: String! $USERNAME: String!) { queryUser(filter: { username: { eq: $USERNAME } }) { hasPassword(filter: { password: { eq: $PASSWORD } }) { id } } }" }
+    # allow a logged in user to see their own user data.
+    { and: [
+      { rule: "{ $IS_LOGGED_IN: { eq: \"true\" } }" }
+      { rule: "query($USERNAME: String!) { queryUser(filter: { username: { eq: $USERNAME } }) { username } }" }
+    ]}
+  ]}
+  # TODO: # add: {  }
+  # TODO: # update: {  }
+  # TODO: # delete: {  }
+) {
+  username: String! @id
+  hasPassword: Pass!
+  isType: UserType! @search
+  UID: ID!
+  firstName: String!@search(by: [term])
+  lastName: String!@search(by: [term])
+  email: String! @search(by: [term])
+  readingLists: [ReadingList!]
+  posts: [Post!]
+  comments: [Comment!] 
+  following: [Following!]
+
+}
+ 
+enum UserType {
+  USER
+  ADMIN
+}
+ 
+type Pass @auth(
+  query: { rule: "{ $NeverHere: { eq: \"anything\" } }" }
+) {
+  id: ID!
+  password: String! @search(by: [hash])
+}
+
+  type ACL {
+    id: ID!
+    level: AccessLevel!
+    grants:User
+  }
+  
+  enum AccessLevel {
+    VIEWER
+    MODERATOR
+    OWNER
+  }
+ 
+  type ReadingList {
+    RID: ID!
+    title: String! @search(by: [term])
+    shortDescription: String! @search(by: [fulltext])
+    description: String! @search(by: [fulltext])
+    datePublished: DateTime!
+    author: [User]! @hasInverse(field: readingLists)
+    isPublic: Boolean! @search(by: [bool])
+    isRestricted: Boolean @search(by: [bool])
+    tags: [Tags!]
+    posts: [Post!]
+    followers: [Following!]
+    rating: [Rating!]
+    access:[ACL!]
+  }
+  
+  
+  type Rating {
+    rid:ID!
+    truth: Int!
+    agreement: Int!
+    author: User!
+    readingList: ReadingList @hasInverse(field: rating)
+    post: Post @hasInverse(field: rating)
+    comments: Comment @hasInverse(field: rating)
+    access:[ACL!]
+  }
+  
+  type Post {
+    PID: ID!
+    title: String! @search(by: [term])
+    url: String!
+    shortDescription: String! @search(by: [fulltext])
+    description: String @search(by: [fulltext])
+    datePublished: DateTime! @search(by: [day])
+    author: User! @hasInverse(field: posts)
+    readingList: ReadingList!
+    comments: [Comment!]
+    tags: [Tags!]
+    rating: [Rating!]
+    access:[ACL!]
+    
+  }
+  
+  type Tags {
+    TID: ID!
+    name: String! @search(by: [term])
+    posts: [Post!] @hasInverse(field: tags)
+    readingLists: [ReadingList!] @hasInverse(field: tags)
+  }
+  
+  type Comment {
+    CID: ID!
+    text: String!  @search(by: [fulltext])
+    author: User! @hasInverse(field: comments)
+    commentsOn: Post! @hasInverse(field: comments)
+    rating: [Rating] @hasInverse(field: comments)
+    access:[ACL!]
+  }
+  
+  type Following {
+    fid: ID!
+    readingList: [ReadingList]!
+    startedFollowingData: DateTime!
+    access:[ACL!]
+  }
+
+ 
+# Dgraph.Authorization {"VerificationKey":"YourSecretKey","Header":"auth","Namespace":"https://yourdomain.com/jwt/claims","Algo":"HS256"}
